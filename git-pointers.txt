@@ -1,0 +1,372 @@
+		GIT И УКАЗАТЕЛИ.
+
+	Часть 1. Первый коммит.
+
+В определенной степени работа с Git сводится к работе с графом истории и перемещению указателей.
+Речь пойдет о ветках/ссылках в Git.
+
+(Часть коммитов сгенерирована рандомно).
+
+Для начала создадим пустой репозиторий.
+
+>> mkdir git-pointers
+>> cd git-pointers
+>> git init
+
+Содержимое .git/ имеет следующий вид (каталог .git/hooks/ предварительно удален):
+
+--------------------------------------------------------------------------------
+
+.git/
+├── branches
+├── config
+├── description
+├── HEAD
+├── info
+│   └── exclude
+├── objects
+│   ├── info
+│   └── pack
+└── refs
+    ├── heads
+    └── tags
+
+--------------------------------------------------------------------------------
+
+Далее нас будут интересовать refs/heads и HEAD.
+
+>> cat HEAD
+
+--------------------------------------------------------------------------------
+
+ref: refs/heads/master
+
+-------------------------------------------------------------------------------- 
+
+По умолчанию HEAD ссылается на ветку master (при этом, refs/heads/master еще нет).
+Поскольку коммиты не сделаны, попытка посмотреть историю командой `git-log` приводит к ошибке
+(fatal: bad default revision 'HEAD')
+(из файла revision.c   die("bad default revision '%s'", revs->def);)
+
+Предположим, я создал два файла arbitrary.txt и password.txt с произвольным текстом и добавил их в индекс.
+Обратим внимание, что в директории .git/objects появилось 2 новых объекта.
+
+--------------------------------------------------------------------------------
+
+.git/
+├── branches
+├── config
+├── description
+├── HEAD
+├── index
+├── info
+│   └── exclude
+├── objects
+│   ├── 43
+│   │   └── 99a58404431b72c3f91a0fc8567883beb007af
+│   ├── d3
+│   │   └── 44af63ef0d1dd0f11472ffe9a4d71bc74c54c1
+│   ├── info
+│   └── pack
+└── refs
+    ├── heads
+    └── tags
+
+-------------------------------------------------------------------------------- 
+
+Служебная команда `git-cat-file` подтверждает, что с помощью sha1-hash закодировано содержимое
+созданных файлов и являются они blob-ами (один из типов объектов в Git).
+
+>> git cat-file -t 4399a58404431b72c3f91a0fc8567883beb007af
+>> git cat-file -t 9d84fae31b1d7b692acc454896166b37f7879bf4
+
+выведет 'blob', а
+
+>> git cat-file -p 4399a58404431b72c3f91a0fc8567883beb007af
+>> git cat-file -p 9d84fae31b1d7b692acc454896166b37f7879bf4
+
+соответственно
+
+--------------------------------------------------------------------------------
+
+some text here
+5 stars *****
+
+--------------------------------------------------------------------------------
+
+Собираясь сделать первый коммит, вместо `git commit -m` я воспользуюсь двумя plumbing командами, чтобы
+продемонстрировать, каким образом в Git происходит обновление ссылок.
+
+1) В первую очередь, необходимо создать дерево из текущего индекса.
+
+>> git write-tree
+1fc4773412b807079495823801ffe1db8023d6f8
+
+Еще один объект в .git/objects, который является деревом.
+
+--------------------------------------------------------------------------------
+
+objects
+    ├── 1f
+    │   └── c4773412b807079495823801ffe1db8023d6f8
+    ├── 43
+    │   └── 99a58404431b72c3f91a0fc8567883beb007af
+    ├── 9d
+    │   └── 84fae31b1d7b692acc454896166b37f7879bf4
+
+--------------------------------------------------------------------------------
+
+>> git cat-file -t 1fc4773412b807079495823801ffe1db8023d6f8
+
+--------------------------------------------------------------------------------
+
+tree
+
+--------------------------------------------------------------------------------
+
+В это дерево входят добавленные чуть ранее в индекс 2 файла.
+
+>> git cat-file -p 1fc4773412b807079495823801ffe1db8023d6f8
+
+--------------------------------------------------------------------------------
+
+100644 blob 4399a58404431b72c3f91a0fc8567883beb007af	arbitrary.txt
+100644 blob 9d84fae31b1d7b692acc454896166b37f7879bf4	password.txt
+
+--------------------------------------------------------------------------------
+
+2) После того как мы создали дерево, которое содержит snapshot состояния проекта на определенный момент,
+можно смело его зафиксировать посредством еще одной служебной команды commit-tree.
+
+>> git commit-tree 1fc4773412b807079495823801ffe1db8023d6f8 -m 'initial commit'
+
+86eca4fca33e3b17a7c2bf32619cce90fc0cb414
+
+В .git/objects появился 4-й объект.
+
+--------------------------------------------------------------------------------
+
+objects
+│   ├── 1f
+│   │   └── c4773412b807079495823801ffe1db8023d6f8
+│   ├── 43
+│   │   └── 99a58404431b72c3f91a0fc8567883beb007af
+│   ├── 86
+│   │   └── eca4fca33e3b17a7c2bf32619cce90fc0cb414
+│   ├── 9d
+│   │   └── 84fae31b1d7b692acc454896166b37f7879bf4
+
+--------------------------------------------------------------------------------
+
+Снова проверим тип нового объекта:
+
+>> git cat-file -t 86eca4fca33e3b17a7c2bf32619cce90fc0cb414
+
+--------------------------------------------------------------------------------
+
+commit
+
+--------------------------------------------------------------------------------
+
+это действительно коммит, а
+
+>> git cat-file -p 86eca4fca33e3b17a7c2bf32619cce90fc0cb414
+
+отобразит его содержимое
+
+--------------------------------------------------------------------------------
+
+tree 1fc4773412b807079495823801ffe1db8023d6f8
+author aplb <dastingo@mail.ru> 1392761300 +0200
+committer aplb <dastingo@mail.ru> 1392761300 +0200
+
+initial commit
+
+--------------------------------------------------------------------------------
+
+Также, информацию об этом коммите можно получить с помощью
+
+>> git show 86eca4fca33e3b17a7c2bf32619cce90fc0cb414 --pretty=raw
+
+Казалось бы, коммит сделан. Но у нас все еще нет истории, команда `git-log` по-прежнему завершается
+сообщением об ошибке.
+Довести высокоуровневый `git commit` до конца поможет обновление ссылок.
+
+>> git update-ref refs/heads/master 86eca4fca33e3b17a7c2b
+(а можно просто git update-ref HEAD 86eca4fca33e3b17a7c2b, так как HEAD ссылается на master, см. >> cat HEAD)
+
+Теперь в нашем репозитории создана история изменений.
+
+
+	Часть 2. Ссылки.
+
+Далее, я сделал несколько коммитов, история изменений приняла следующий вид.
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (3 days ago) aplb initial commit
+┣ 9fa7ccb (2 days ago) aplb A random change of 26255 to foo1.txt
+┣ 76848ea (2 days ago) aplb A random change of 18699 to foo2.txt
+┣ c47f00b (2 days ago) aplb A random change of 29955 to foo3.txt
+┗━[HEAD]──[master]──5012deb (2 days ago) aplb A random change of 13892 to foo4.txt
+
+--------------------------------------------------------------------------------
+
+HEAD ссылается на ветку master, а master указывает на коммит, который был сделан в последним.
+
+>>cat .git/refs/heads/master
+
+--------------------------------------------------------------------------------
+
+5012deb2cf6809d61d77b4b95287b18e911cdf27
+
+--------------------------------------------------------------------------------
+
+Сейчас можно сделать историю чуть более изощренной. Допустим, нам понадобилось внести ряд изменений
+в отдельной ветке friday-fix. При этом, в ней не нужны изменения последних трех коммитов ветки master.
+Создадим новую ветку, берущую начало от коммита 9fa7ccb.
+
+>> git checkout -b friday-fix 9fa7ccb
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (3 days ago) aplb initial commit
+┣━[HEAD]──[friday-fix]──9fa7ccb (2 days ago) aplb A random change of 26255 to foo1.txt
+┣ 76848ea (2 days ago) aplb A random change of 18699 to foo2.txt
+┣ c47f00b (2 days ago) aplb A random change of 29955 to foo3.txt
+┗━[master]──5012deb (2 days ago) aplb A random change of 13892 to foo4.txt
+
+--------------------------------------------------------------------------------
+
+Сейчас, мы просто создали новый указатель refs/heads/friday-fix, который ссылается на коммит 9fa7ccb,
+
+>> cat .git/refs/heads/friday-fix
+
+--------------------------------------------------------------------------------
+
+9fa7ccb5433abef48bfe0b8c55ba4b1d9c44205c
+
+--------------------------------------------------------------------------------
+
+а HEAD теперь будет указывать на friday-fix (пока мы не переместимся с помощью chechout).
+
+>> cat .git/HEAD
+
+--------------------------------------------------------------------------------
+
+ref: refs/heads/friday-fix
+
+--------------------------------------------------------------------------------
+
+В новой ветке я сделал несколько коммитов. История разветвилась.
+Можно быстро перемещаться с ветки master на friday-fix и обратно, используя `git-checkout`, при этом
+обновляться будет указатель HEAD.
+Вот так, можно видеть на какую ветку указывает HEAD.
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (5 days ago) aplb initial commit
+┣ 9fa7ccb (3 days ago) aplb A random change of 26255 to foo1.txt
+┣━┓
+┃ ┣ 76848ea (3 days ago) aplb A random change of 18699 to foo2.txt
+┃ ┣ c47f00b (3 days ago) aplb A random change of 29955 to foo3.txt
+┃ ┗━[master]──5012deb (3 days ago) aplb A random change of 13892 to foo4.txt
+┣ e6a79e5 (3 seconds ago) aplb A random change of 3158 to essentials1.txt
+┣ 5c4e028 (3 seconds ago) aplb A random change of 1669 to essentials2.txt
+┗━[HEAD]──[friday-fix]──20f9dcb (3 seconds ago) aplb A random change of 24383 to essentials3.txt
+
+--------------------------------------------------------------------------------
+
+Однако, хотелось бы привести несколько вычурный пример, который покажет силу указателей в Git.
+
+Итак, я выполнил несколько перемещений между ветками master и friday-fix. Воспользуемся командой
+
+>> git reflog
+
+все изменения HEAD зафиксированы.
+
+--------------------------------------------------------------------------------
+
+20f9dcb HEAD@{0}: checkout: moving from master to friday-fix
+5012deb HEAD@{1}: checkout: moving from friday-fix to master
+20f9dcb HEAD@{2}: checkout: moving from master to friday-fix
+5012deb HEAD@{3}: checkout: moving from friday-fix to master
+20f9dcb HEAD@{4}: commit: A random change of 24383 to essentials3.txt
+5c4e028 HEAD@{5}: commit: A random change of 1669 to essentials2.txt
+e6a79e5 HEAD@{6}: commit: A random change of 3158 to essentials1.txt
+9fa7ccb HEAD@{7}: checkout: moving from master to friday-fix
+5012deb HEAD@{8}: commit: A random change of 13892 to foo4.txt
+c47f00b HEAD@{9}: commit: A random change of 29955 to foo3.txt
+76848ea HEAD@{10}: commit: A random change of 18699 to foo2.txt
+9fa7ccb HEAD@{11}: commit: A random change of 26255 to foo1.txt
+86eca4f HEAD@{12}: 
+
+--------------------------------------------------------------------------------
+
+История по-прежнему в порядке. Заметим, ветка master содержит 5 коммитов.
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (5 days ago) aplb initial commit
+┣ 9fa7ccb (3 days ago) aplb A random change of 26255 to foo1.txt
+┣━┓
+┃ ┣ 76848ea (3 days ago) aplb A random change of 18699 to foo2.txt
+┃ ┣ c47f00b (3 days ago) aplb A random change of 29955 to foo3.txt
+┃ ┗━[master]──5012deb (3 days ago) aplb A random change of 13892 to foo4.txt
+┣ e6a79e5 (42 minutes ago) aplb A random change of 3158 to essentials1.txt
+┣ 5c4e028 (42 minutes ago) aplb A random change of 1669 to essentials2.txt
+┗━[HEAD]──[friday-fix]──20f9dcb (42 minutes ago) aplb A random change of 24383 to essentials3.txt
+
+--------------------------------------------------------------------------------
+
+В этот момент я, пытаясь продемонстрировать работу `git-update-ref`, по ошибке выполняю
+
+>> git update-ref refs/heads/master e6a79e5
+
+Дерево истории:
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (5 days ago) aplb initial commit
+┣ 9fa7ccb (3 days ago) aplb A random change of 26255 to foo1.txt
+┣━[master]──e6a79e5 (55 minutes ago) aplb A random change of 3158 to essentials1.txt
+┣ 5c4e028 (55 minutes ago) aplb A random change of 1669 to essentials2.txt
+┗━[HEAD]──[friday-fix]──20f9dcb (55 minutes ago) aplb A random change of 24383 to essentials3.txt
+
+--------------------------------------------------------------------------------
+
+Git сделал именно то, о чем я его попросил. Указатель(ветка) master теперь ссылается на один
+из коммитов ветки friday-fix (см. cat .git/refs/heads/master). В ветке master всего 3 коммита, вместо 5.
+При этом работа из трех коммитов master-ской ветки потеряна. Вот они:
+
+--------------------------------------------------------------------------------
+
+┣ 76848ea (3 days ago) aplb A random change of 18699 to foo2.txt
+┣ c47f00b (3 days ago) aplb A random change of 29955 to foo3.txt
+┗ 5012deb (3 days ago) aplb A random change of 13892 to foo4.txt
+
+ --------------------------------------------------------------------------------
+
+И здесь может помочь `git-reflog`. Всё, что нужно, это sha коммита, куда мы хотим вернуться:
+5012deb (3 days ago) aplb A random change of 13892 to foo4.txt
+
+>> git update-ref refs/heads/master 5012deb
+(или git update-ref refs/heads/master HEAD@{8})
+
+Искомое состояние истории восстановлено, master указывает на верхушку прежней ветки.
+
+--------------------------------------------------------------------------------
+
+┏ 86eca4f (5 days ago) aplb initial commit
+┣ 9fa7ccb (3 days ago) aplb A random change of 26255 to foo1.txt
+┣━┓
+┃ ┣ 76848ea (3 days ago) aplb A random change of 18699 to foo2.txt
+┃ ┣ c47f00b (3 days ago) aplb A random change of 29955 to foo3.txt
+┃ ┗━[master]──5012deb (3 days ago) aplb A random change of 13892 to foo4.txt
+┣ e6a79e5 (81 minutes ago) aplb A random change of 3158 to essentials1.txt
+┣ 5c4e028 (81 minutes ago) aplb A random change of 1669 to essentials2.txt
+┗━[HEAD]──[friday-fix]──20f9dcb (81 minutes ago) aplb A random change of 24383 to essentials3.txt
+
+--------------------------------------------------------------------------------
+
+Вот и всё. Переключаться между ветками, искать потерянные изменения, и вручную обновлять ссылки в Git просто.
