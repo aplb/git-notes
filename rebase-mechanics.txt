@@ -1,112 +1,72 @@
-		МЕХАНИКА REBASE.
+Rebase_Mechanics
 
-Итак, рассмотрим следующую историю.
-(Коммиты сгенерированы рандомно).
+МЕХАНИКА REBASE.
 
---------------------------------------------------------------------------------
+Итак, рассмотрим следующую историю. (Коммиты сгенерированы рандомно).
 
-┏ 2702bed (49 minutes ago) aplb A random change of 18513 to master1.txt
-┣ cd27e19 (49 minutes ago) aplb A random change of 23068 to master2.txt
+(Тестовый репо на https://github.com/aplb/rebase-mechanics.git)
+
+┏ 56b34f8 (46 seconds ago) aplb A random change of 14253 to master1.txt
+┣ ded8f1a (46 seconds ago) aplb A random change of 5174 to master2.txt
 ┣━┓
-┃ ┣ 43948ca (49 minutes ago) aplb A random change of 24595 to master3.txt
-┃ ┗━[master]──54d123d (49 minutes ago) aplb A random change of 8798 to master4.txt
-┣ 6359ac6 (19 seconds ago) aplb A random change of 27285 to feat1.txt
-┣ 93c7b2a (19 seconds ago) aplb A random change of 865 to feat2.txt
-┗━[HEAD]──[feat]──3fcbe57 (19 seconds ago) aplb A random change of 20774 to feat3.txt
+┃ ┣ c627aa2 (46 seconds ago) aplb A random change of 29717 to master3.txt
+┃ ┗━[master]──a0e75cc (46 seconds ago) aplb A random change of 23710 to master4.txt
+┣ 6653efe (3 seconds ago) aplb A random change of 9225 to feat1.txt
+┣ f90c50d (3 seconds ago) aplb A random change of 14433 to feat2.txt
+┗━[HEAD]──[feat]──88a1762 (3 seconds ago) aplb A random change of 3753 to feat3.txt
+От ветки master в определенный момент пошла линия разработки feat, в ней были сделаны 3 коммита. Чтобы поддерживать историю линейной, стоит задача: поместить эти коммиты на верхушку master, при этом коммиты 1 и 2 можно уплотнить в один. С этим поможет справиться
 
---------------------------------------------------------------------------------
+git rebase -i master
 
-От ветки master в определенный момент пошла линия разработки feat, в ней были сделаны 3 коммита.
-Чтобы поддерживать историю линейной, стоит задача: поместить эти коммиты на верхушку master, при этом
-коммиты 1 и 2 можно уплотнить в один.
-С этим поможет справиться
+pick 6653efe A random change of 9225 to feat1.txt
+pick f90c50d A random change of 14433 to feat2.txt
+pick 88a1762 A random change of 3753 to feat3.txt
+На второй строке редактора 'pick f90c50d' заменяем pick на squash (или s), чтобы уплотнить коммит f90c50d с его предшественником 6653efe в один. Смотрим историю.
 
->> git rebase -i master
+┏ 56b34f8 (5 minutes ago) aplb A random change of 14253 to master1.txt
+┣ ded8f1a (5 minutes ago) aplb A random change of 5174 to master2.txt
+┣ c627aa2 (5 minutes ago) aplb A random change of 29717 to master3.txt
+┣━[master]──a0e75cc (5 minutes ago) aplb A random change of 23710 to master4.txt
+┣ 8d00dbf (4 minutes ago) aplb This is a combination of 2 commits: feat1 and feat2
+┗━[HEAD]──[feat]──766cfcd (4 minutes ago) aplb A random change of 3753 to feat3.txt
+Получилось. История изменений линейна, из двух коммитов сплющен один. Можно безболезненно выполнить fast-forward merge на master-е. Стоит все же напомнить, что перемещенные коммиты не являются теми же самыми. У них другой sha1-hash. Родителем нашего squashed-коммита 8d00dbf выступает коммит a0e75cc, на который указывает ветка master.
 
---------------------------------------------------------------------------------
-
-pick 6359ac6 A random change of 27285 to feat1.txt
-pick 93c7b2a A random change of 865 to feat2.txt
-pick 3fcbe57 A random change of 20774 to feat3.txt
-
---------------------------------------------------------------------------------
-
-На второй строке редактора 'pick 93c7b2a' заменяем pick на squash (или s), чтобы уплотнить коммит 93c7b2a с его предшественником 6359ac6 в один.
-Смотрим историю.
-
---------------------------------------------------------------------------------
-
-┏ 2702bed (60 minutes ago) aplb A random change of 18513 to master1.txt
-┣ cd27e19 (60 minutes ago) aplb A random change of 23068 to master2.txt
-┣ 43948ca (60 minutes ago) aplb A random change of 24595 to master3.txt
-┣━[master]──54d123d (60 minutes ago) aplb A random change of 8798 to master4.txt
-┣ bbc18a3 (11 minutes ago) aplb This is a combination of 2 commits 1 and 2
-┗━[HEAD]──[feat]──3ab9ecc (11 minutes ago) aplb A random change of 20774 to feat3.txt
-
---------------------------------------------------------------------------------
-
-Получилось. История изменений линейна, из двух коммитов сплющен один. Можно безболезненно выполнить
-fast-forward merge на master-е. Стоит все же напомнить, что перемещенные коммиты не являются теми же самыми. У них другой sha1-hash. Родителем нашего squashed-коммита bbc18a3 выступает коммит 54d123d, на который указывает ветка master.
-
-
-Это было вступление. А теперь вернемся к изначальному состоянию истории и попробуем выполнить то же самое
-с помощью более простых команд.
+Это было вступление. А теперь вернемся к изначальному состоянию истории и попробуем выполнить то же самое с помощью более простых команд.
 
 Чтобы повторить 'git rebase -i master', для начала перейдем на ветку master.
 
->> git checkout master
+git checkout master
+Надо понимать, что разницей между двумя коммитами является дельта. Выполняя rebase, Git вычисляет дельту между коммитами (ветки feat) и последовательно применяет их (дельты) на ветке, на которую выполняется перемещение (в данном случае master). Также я создам специально для rebase ветку
 
-Надо понимать, что разницей между двумя коммитами является дельта. Выполняя rebase, Git вычисляет дельту между
-коммитами (ветки feat) и последовательно применяет их (дельты) на ветке, на которую выполняется перемещение
-(в данном случае master).
-Также я создам специально для rebase ветку
+git checkout -b tmp-rebase master
+git diff ded8f1a 6653efe | git apply
+1) Для начала определим разницу при переходе из ded8f1a в коммит 6653efe, затем по цепочке команд применим дельту к working tree, что позволяет не использовать временный файл. Команда git-status показывает, что в дереве проекта появились изменения. С помощью git-add и git commit создадим новый коммит. И хотя, показывая git rebase -i, я делал squash для 1 и 2 коммитов ветки feat, в текущем примере я выполню squash для 2 и 3.
 
->> git checkout -b tmp-rebase master
+2) Далее можно последовательно получать diff между коммитами, применяя его
 
->> git diff cd27e19 6359ac6 | git apply
-
-1) Для начала определим разницу при переходе из cd27e19 в коммит 6359ac6, затем по цепочке команд применим дельту к
-working tree, что позволяет не использовать временный файл.
-Команда `git-status` показывает, что в дереве проекта появились изменения. С помощью `git-add` и `git commit`
-создадим новый коммит.
-И хотя, показывая `git rebase -i`, я делал squash для 1 и 2 коммитов ветки feat, в текущем примере я выполню squash
-для 2 и 3.
-
-Далее можно последовательно получать diff между коммитами, применяя его
-
->> git diff 6359ac6 93c7b2a
+git diff 6653efe f90c50d
 и
->> git diff 93c7b2a 3fcbe57
 
+git diff f90c50d 88a1762
 Но поскольку это простой учебный пример, можно получить и применить два diff-а сразу.
 
->> git diff 6359ac6 3fcbe57 | git apply
-
-`git-status` снова покажет, что в дереве проекта появились новые файлы, которые можно добавить в индекс и
-зафиксировать.
+git diff 6653efe 88a1762 | git apply
+git-status снова покажет, что в дереве проекта появились новые файлы, которые можно добавить в индекс и зафиксировать.
 
 Вот практически и всё. Некоторую информацию о полученных изменениях можно извлечь из вывода
 
->> git log -p -2
-
+git log -p -2
 В завершение я переименую временную ветку в feat, тем самым удалив старую.
 
->> git branch -M feat
-
+git branch -M feat
 История изменений теперь выглядит так:
 
---------------------------------------------------------------------------------
+┏ 56b34f8 (63 minutes ago) aplb A random change of 14253 to master1.txt
+┣ ded8f1a (63 minutes ago) aplb A random change of 5174 to master2.txt
+┣ c627aa2 (63 minutes ago) aplb A random change of 29717 to master3.txt
+┣━[master]──a0e75cc (63 minutes ago) aplb A random change of 23710 to master4.txt
+┣ ebca023 (6 minutes ago) aplb Rebased commit-1
+┗━[HEAD]──[feat]──ea00eb6 (65 seconds ago) aplb Rebased commits 2 and 3
+что похоже на результат, полученный во вводной части. Нет ничего легче перемотки fast-forward.
 
-┏ 2702bed (4 hours ago) aplb A random change of 18513 to master1.txt
-┣ cd27e19 (4 hours ago) aplb A random change of 23068 to master2.txt
-┣ 43948ca (4 hours ago) aplb A random change of 24595 to master3.txt
-┣━[master]──54d123d (4 hours ago) aplb A random change of 8798 to master4.txt
-┣ 68bba50 (13 minutes ago) aplb Rebased commit-1
-┗━[HEAD]──[feat]──38bcc9d (3 minutes ago) aplb Rebased commits 2 and 3
-
---------------------------------------------------------------------------------
-
-что похоже на результат, полученный в вводной части. Нет ничего легче перемотки fast-forward.
-
-Несмотря на то, что такие действия не стоит повторять ежедневно, пример демонстрирует определенную схему работы
-rebase-a без погружения во все внутренние нюансы.
+Несмотря на то, что такие действия не стоит повторять ежедневно, пример демонстрирует определенную схему работы rebase-a без погружения во все внутренние нюансы.
